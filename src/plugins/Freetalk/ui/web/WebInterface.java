@@ -29,8 +29,7 @@ import freenet.clients.http.ToadletContainer;
 import freenet.clients.http.ToadletContext;
 import freenet.clients.http.ToadletContextClosedException;
 import freenet.clients.http.SessionManager.Session;
-import freenet.clients.http.filter.ContentFilter;
-import freenet.clients.http.filter.ContentFilter.FilterOutput;
+import freenet.client.filter.ContentFilter;
 import freenet.l10n.BaseL10n;
 import freenet.node.NodeClientCore;
 import freenet.support.Logger;
@@ -492,7 +491,7 @@ public final class WebInterface {
 			WoTIdentityManager identityManager = (WoTIdentityManager)mFreetalk.getIdentityManager();
 			
 			Bucket dataBucket = null;
-			FilterOutput output = null;
+			Bucket output = core.tempBucketFactory.makeBucket(-1);
 			
 			try {
 				IntroductionPuzzle puzzle = identityManager.getIntroductionPuzzle(req.getParam("PuzzleID"));
@@ -506,8 +505,8 @@ public final class WebInterface {
 				}
 				
 				dataBucket = BucketTools.makeImmutableBucket(core.tempBucketFactory, puzzle.Data);
-				output = ContentFilter.filter(dataBucket, core.tempBucketFactory, puzzle.MimeType, uri, null, null, null);
-				writeReply(ctx, 200, output.type, "OK", output.data);
+				ContentFilter.filter(dataBucket.getInputStream(), output.getOutputStream(), puzzle.MimeType, uri, null, null, null);
+				writeReply(ctx, 200, puzzle.MimeType, "OK", output);
 			}
 			catch(Exception e) {
 				sendErrorPage(ctx, 404, "Introduction puzzle not available", e.getMessage());
@@ -515,7 +514,7 @@ public final class WebInterface {
 			}
 			finally {
 				if(output != null)
-					Closer.close(output.data);
+					Closer.close(output);
 				Closer.close(dataBucket);
 			}
 		}
@@ -582,6 +581,7 @@ public final class WebInterface {
 			InputStream cssInputStream = null;
 			ByteArrayOutputStream cssBufferOutputStream = null;
 			Bucket cssBucket = null;
+			Bucket filterOutput = core.tempBucketFactory.makeBucket(-1);
 			byte[] cssBuffer = new byte[0];
 			try {
 				String cssFilename = uri.getPath();
@@ -599,12 +599,13 @@ public final class WebInterface {
 					cssBuffer = cssBufferOutputStream.toByteArray();
 				}
 				cssBucket = BucketTools.makeImmutableBucket(core.tempBucketFactory, cssBuffer);
-				FilterOutput filterOutput = ContentFilter.filter(cssBucket, core.tempBucketFactory, "text/css", uri, null, null, null);
-				writeReply(context, 200, "text/css", "OK", filterOutput.data);
+				ContentFilter.filter(cssBucket.getInputStream(), filterOutput.getOutputStream(), "text/css", uri, null, null, null);
+				writeReply(context, 200, "text/css", "OK", filterOutput);
 			} finally {
 				Closer.close(cssBucket);
 				Closer.close(cssInputStream);
 				Closer.close(cssBufferOutputStream);
+				Closer.close(filterOutput);
 			}
 		}
 
