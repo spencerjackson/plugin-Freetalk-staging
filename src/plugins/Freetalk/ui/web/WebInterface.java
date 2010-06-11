@@ -6,6 +6,7 @@ package plugins.Freetalk.ui.web;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLConnection;
@@ -492,6 +493,8 @@ public final class WebInterface {
 			
 			Bucket dataBucket = null;
 			Bucket output = core.tempBucketFactory.makeBucket(-1);
+			InputStream filterInput = null;
+			OutputStream filterOutput = null;
 			
 			try {
 				IntroductionPuzzle puzzle = identityManager.getIntroductionPuzzle(req.getParam("PuzzleID"));
@@ -503,9 +506,12 @@ public final class WebInterface {
 					
 					throw new Exception("Mime type '" + puzzle.MimeType + "' not allowed for introduction puzzles.");
 				}
-				
 				dataBucket = BucketTools.makeImmutableBucket(core.tempBucketFactory, puzzle.Data);
-				ContentFilter.filter(dataBucket.getInputStream(), output.getOutputStream(), puzzle.MimeType, uri, null, null, null);
+				filterInput = dataBucket.getInputStream();
+				filterOutput = output.getOutputStream();
+				ContentFilter.filter(filterInput, filterOutput, puzzle.MimeType, uri, null, null, null);
+				filterInput.close();
+				filterOutput.close();
 				writeReply(ctx, 200, puzzle.MimeType, "OK", output);
 			}
 			catch(Exception e) {
@@ -516,6 +522,8 @@ public final class WebInterface {
 				if(output != null)
 					Closer.close(output);
 				Closer.close(dataBucket);
+				Closer.close(filterInput);
+				Closer.close(filterOutput);
 			}
 		}
 		
