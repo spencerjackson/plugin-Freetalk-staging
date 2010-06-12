@@ -589,7 +589,9 @@ public final class WebInterface {
 			InputStream cssInputStream = null;
 			ByteArrayOutputStream cssBufferOutputStream = null;
 			Bucket cssBucket = null;
-			Bucket filterOutput = core.tempBucketFactory.makeBucket(-1);
+			Bucket output = core.tempBucketFactory.makeBucket(-1);
+			InputStream filterInput = null;
+			OutputStream filterOutput = null;
 			byte[] cssBuffer = new byte[0];
 			try {
 				String cssFilename = uri.getPath();
@@ -607,13 +609,17 @@ public final class WebInterface {
 					cssBuffer = cssBufferOutputStream.toByteArray();
 				}
 				cssBucket = BucketTools.makeImmutableBucket(core.tempBucketFactory, cssBuffer);
-				ContentFilter.filter(cssBucket.getInputStream(), filterOutput.getOutputStream(), "text/css",  cssBucket.size(), uri, null, null, null);
-				writeReply(context, 200, "text/css", "OK", filterOutput);
+				filterInput = cssBucket.getInputStream();
+				filterOutput = output.getOutputStream();
+				ContentFilter.filter(filterInput, filterOutput, "text/css",  cssBucket.size(), uri, null, null, null);
+				writeReply(context, 200, "text/css", "OK", output);
 			} finally {
 				Closer.close(cssBucket);
 				Closer.close(cssInputStream);
 				Closer.close(cssBufferOutputStream);
+				Closer.close(output);
 				Closer.close(filterOutput);
+				Closer.close(filterInput);
 			}
 		}
 
